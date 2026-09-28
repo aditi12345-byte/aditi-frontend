@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" fill="none">
+  <defs>
+    <linearGradient id="grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#6366F1" />
+      <stop offset="50%" stop-color="#8B5CF6" />
+      <stop offset="100%" stop-color="#EC4899" />
+    </linearGradient>
+  </defs>
+  <rect width="100" height="100" rx="28" fill="url(#grad)" />
+  <circle cx="50" cy="50" r="30" fill="rgba(255, 255, 255, 0.18)" />
+  <!-- Rupee Symbol -->
+  <path d="M42 32 H58 M42 41 H56 M42 41 C48 41 53 39 53 36 C53 33 48 32 42 32 M42 41 L42 68 M47 41 L58 68" 
+        stroke="#FFFFFF" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" />
+</svg>
