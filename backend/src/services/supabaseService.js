@@ -1,5 +1,11 @@
 const crypto = require('crypto');
-const { supabase, isUsingLocalFallback, getLocalDb, saveLocalDb } = require('../config/db');
+const database = require('../config/db');
+const { supabase, getLocalDb, saveLocalDb } = database;
+
+const isUsingLocalFallback = () => database.isUsingLocalFallback();
+const canUseLocalFallback = (error) =>
+  ['PGRST205', '42P01'].includes(error.code) ||
+  /could not find the table .* in the schema cache|relation .* does not exist/i.test(error.message || '');
 
 /**
  * Service layer abstraction for Supabase PostgreSQL tables:
@@ -13,42 +19,52 @@ const generateUUID = () => crypto.randomUUID();
 
 // ================= USER OPERATIONS =================
 const findUserByEmail = async (email) => {
-  if (supabase && !isUsingLocalFallback) {
-    const { data, error } = await supabase
-      .from('users')
-      .select('*')
-      .eq('email', email.toLowerCase().trim())
-      .maybeSingle();
+  if (supabase && !isUsingLocalFallback()) {
+    try {
+      const { data, error } = await supabase
+        .from('users')
+        .select('*')
+        .eq('email', email.toLowerCase().trim())
+        .maybeSingle();
 
-    if (error) throw error;
-    return data;
-  } else {
-    const db = getLocalDb();
-    return db.users.find((u) => u.email.toLowerCase() === email.toLowerCase().trim()) || null;
+      if (error) throw error;
+      return data;
+    } catch (error) {
+      if (!canUseLocalFallback(error)) throw error;
+      database.activateLocalFallback(error.message);
+    }
   }
+
+  const db = getLocalDb();
+  return db.users.find((u) => u.email.toLowerCase() === email.toLowerCase().trim()) || null;
 };
 
 const findUserById = async (id) => {
-  if (supabase && !isUsingLocalFallback) {
-    const { data, error } = await supabase
-      .from('users')
-      .select('id, name, email, created_at')
-      .eq('id', id)
-      .maybeSingle();
+  if (supabase && !isUsingLocalFallback()) {
+    try {
+      const { data, error } = await supabase
+        .from('users')
+        .select('id, name, email, created_at')
+        .eq('id', id)
+        .maybeSingle();
 
-    if (error) throw error;
-    return data;
-  } else {
-    const db = getLocalDb();
-    const user = db.users.find((u) => u.id === id);
-    if (!user) return null;
-    return {
-      id: user.id,
-      name: user.name,
-      email: user.email,
-      created_at: user.created_at
-    };
+      if (error) throw error;
+      return data;
+    } catch (error) {
+      if (!canUseLocalFallback(error)) throw error;
+      database.activateLocalFallback(error.message);
+    }
   }
+
+  const db = getLocalDb();
+  const user = db.users.find((u) => u.id === id);
+  if (!user) return null;
+  return {
+    id: user.id,
+    name: user.name,
+    email: user.email,
+    created_at: user.created_at
+  };
 };
 
 const createUser = async ({ name, email, password_hash }) => {
@@ -60,7 +76,7 @@ const createUser = async ({ name, email, password_hash }) => {
     created_at: new Date().toISOString()
   };
 
-  if (supabase && !isUsingLocalFallback) {
+  if (supabase && !isUsingLocalFallback()) {
     const { data, error } = await supabase
       .from('users')
       .insert([newUser])
@@ -81,7 +97,7 @@ const createUser = async ({ name, email, password_hash }) => {
 const getTransactions = async (userId, filters = {}) => {
   const { type, category, search, startDate, endDate, sort = 'desc' } = filters;
 
-  if (supabase && !isUsingLocalFallback) {
+  if (supabase && !isUsingLocalFallback()) {
     let query = supabase
       .from('transactions')
       .select('*')
@@ -122,7 +138,7 @@ const getTransactions = async (userId, filters = {}) => {
 };
 
 const getTransactionById = async (userId, id) => {
-  if (supabase && !isUsingLocalFallback) {
+  if (supabase && !isUsingLocalFallback()) {
     const { data, error } = await supabase
       .from('transactions')
       .select('*')
@@ -153,7 +169,7 @@ const createTransaction = async (userId, transactionData) => {
     updated_at: new Date().toISOString()
   };
 
-  if (supabase && !isUsingLocalFallback) {
+  if (supabase && !isUsingLocalFallback()) {
     const { data, error } = await supabase
       .from('transactions')
       .insert([newTx])
@@ -180,7 +196,7 @@ const updateTransaction = async (userId, id, updates) => {
   // Clean undefined
   Object.keys(updatedFields).forEach((key) => updatedFields[key] === undefined && delete updatedFields[key]);
 
-  if (supabase && !isUsingLocalFallback) {
+  if (supabase && !isUsingLocalFallback()) {
     const { data, error } = await supabase
       .from('transactions')
       .update(updatedFields)
@@ -206,7 +222,7 @@ const updateTransaction = async (userId, id, updates) => {
 };
 
 const deleteTransaction = async (userId, id) => {
-  if (supabase && !isUsingLocalFallback) {
+  if (supabase && !isUsingLocalFallback()) {
     const { error } = await supabase
       .from('transactions')
       .delete()
@@ -228,7 +244,7 @@ const deleteTransaction = async (userId, id) => {
 const getBudgets = async (userId, month) => {
   const activeMonth = month || new Date().toISOString().slice(0, 7);
 
-  if (supabase && !isUsingLocalFallback) {
+  if (supabase && !isUsingLocalFallback()) {
     const { data, error } = await supabase
       .from('budgets')
       .select('*')
@@ -247,7 +263,7 @@ const upsertBudget = async (userId, { category, amount, month }) => {
   const activeMonth = month || new Date().toISOString().slice(0, 7);
   const numAmount = Number(amount);
 
-  if (supabase && !isUsingLocalFallback) {
+  if (supabase && !isUsingLocalFallback()) {
     // Check existing
     const { data: existing } = await supabase
       .from('budgets')
@@ -310,7 +326,7 @@ const upsertBudget = async (userId, { category, amount, month }) => {
 };
 
 const deleteBudget = async (userId, id) => {
-  if (supabase && !isUsingLocalFallback) {
+  if (supabase && !isUsingLocalFallback()) {
     const { error } = await supabase
       .from('budgets')
       .delete()
@@ -330,7 +346,7 @@ const deleteBudget = async (userId, id) => {
 
 // ================= SAVINGS GOAL OPERATIONS =================
 const getSavingsGoals = async (userId) => {
-  if (supabase && !isUsingLocalFallback) {
+  if (supabase && !isUsingLocalFallback()) {
     const { data, error } = await supabase
       .from('savings_goals')
       .select('*')
@@ -359,7 +375,7 @@ const createSavingsGoal = async (userId, goalData) => {
     updated_at: new Date().toISOString()
   };
 
-  if (supabase && !isUsingLocalFallback) {
+  if (supabase && !isUsingLocalFallback()) {
     const { data, error } = await supabase
       .from('savings_goals')
       .insert([newGoal])
@@ -386,7 +402,7 @@ const updateSavingsGoal = async (userId, id, updates) => {
 
   Object.keys(updatedFields).forEach((key) => updatedFields[key] === undefined && delete updatedFields[key]);
 
-  if (supabase && !isUsingLocalFallback) {
+  if (supabase && !isUsingLocalFallback()) {
     const { data, error } = await supabase
       .from('savings_goals')
       .update(updatedFields)
@@ -412,7 +428,7 @@ const updateSavingsGoal = async (userId, id, updates) => {
 };
 
 const deleteSavingsGoal = async (userId, id) => {
-  if (supabase && !isUsingLocalFallback) {
+  if (supabase && !isUsingLocalFallback()) {
     const { error } = await supabase
       .from('savings_goals')
       .delete()

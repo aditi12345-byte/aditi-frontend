@@ -7,7 +7,7 @@ let supabase = null;
 let isUsingLocalFallback = false;
 
 // Local JSON store path for offline development fallback
-const LOCAL_DB_PATH = path.join(__dirname, '..', '..', 'local_database.json');
+const LOCAL_DB_PATH = process.env.LOCAL_DB_PATH || path.join(__dirname, '..', '..', 'local_database.json');
 
 const initLocalStore = () => {
   if (!fs.existsSync(LOCAL_DB_PATH)) {
@@ -59,9 +59,18 @@ const saveLocalDb = (data) => {
   }
 };
 
+const activateLocalFallback = (reason) => {
+  if (!isUsingLocalFallback) {
+    console.warn(`Supabase is unavailable (${reason}). Switching to the local data store.`);
+    isUsingLocalFallback = true;
+    initLocalStore();
+  }
+};
+
 module.exports = {
   supabase,
-  isUsingLocalFallback,
+  isUsingLocalFallback: () => isUsingLocalFallback,
+  activateLocalFallback,
   getLocalDb,
   saveLocalDb
 };
