@@ -1,4 +1,12 @@
-const BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
+const configuredApiUrl = import.meta.env.VITE_API_BASE_URL || '/api';
+const apiUrlWithoutTrailingSlash = configuredApiUrl.replace(/\/+$/, '');
+
+// The backend mounts every route under `/api`. Accept either the Render origin
+// or the full `/api` URL in VITE_API_BASE_URL so a missing suffix cannot break
+// sign-in and sign-up requests after deployment.
+const BASE_URL = apiUrlWithoutTrailingSlash.endsWith('/api')
+  ? apiUrlWithoutTrailingSlash
+  : `${apiUrlWithoutTrailingSlash}/api`;
 
 const request = async (endpoint, options = {}) => {
   const token = localStorage.getItem('teen_track_token');
